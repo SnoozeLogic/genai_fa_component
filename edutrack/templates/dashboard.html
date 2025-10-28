@@ -2,6 +2,75 @@
 
 {% block title %}Dashboard - EduTrack AI{% endblock %}
 
+{% block extra_css %}
+<style>
+    .assignment-card {
+        border-left: 4px solid #667eea;
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+    }
+    
+    .assignment-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .assignment-card .card-title {
+        color: #667eea;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .assignment-card .deadline-badge {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    
+    .assignment-card .deadline-passed {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stat-badge {
+        background: #f8f9fa;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        display: inline-block;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-badge i {
+        color: #667eea;
+    }
+    
+    .progress-ring {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: conic-gradient(#43e97b var(--progress), #e9ecef 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    
+    .progress-ring-inner {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="mb-4">
     <h1 class="display-5 fw-bold">
@@ -91,72 +160,108 @@
 </div>
 
 <!-- Recent Assignments -->
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">
-                    <i class="bi bi-clock-history"></i> Recent Assignments
-                </h5>
-            </div>
-            <div class="card-body">
-                {% if assignments %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Created</th>
-                                    <th>Deadline</th>
-                                    <th>Repos</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for assignment in assignments %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ assignment.title }}</strong>
-                                        </td>
-                                        <td>{{ assignment.created_at|date:"M d, Y" }}</td>
-                                        <td>
-                                            {% if assignment.deadline %}
-                                                {{ assignment.deadline|date:"M d, Y" }}
-                                            {% else %}
-                                                <span class="text-muted">No deadline</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-primary">
-                                                {{ assignment.repos.count }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <a href="{% url 'assignment_detail' assignment.id %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-eye"></i> View
-                                            </a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="text-center mt-3">
-                        <a href="{% url 'assignment_list' %}" class="btn btn-outline-secondary">
-                            View All Assignments
-                        </a>
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-inbox fs-1 text-muted"></i>
-                        <p class="text-muted mt-3">No assignments yet. Create your first assignment to get started!</p>
-                        <a href="{% url 'assignment_create' %}" class="btn btn-primary">
-                            <i class="bi bi-plus-circle"></i> Create Assignment
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">
+                <i class="bi bi-folder-fill text-primary"></i> Your Assignments
+            </h4>
+            <a href="{% url 'assignment_list' %}" class="btn btn-sm btn-outline-primary">
+                View All <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
     </div>
+</div>
+
+<div class="row">
+    {% if assignment_list %}
+        {% for item in assignment_list %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card assignment-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">{{ item.assignment.title }}</h5>
+                            <div class="progress-ring" style="--progress: {{ item.completion_percentage }}%;">
+                                <div class="progress-ring-inner">
+                                    {{ item.completion_percentage|floatformat:0 }}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if item.assignment.description %}
+                            <p class="text-muted small mb-3">
+                                {{ item.assignment.description|truncatewords:15 }}
+                            </p>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <div class="stat-badge">
+                                <i class="bi bi-people-fill"></i>
+                                <strong>{{ item.student_count }}</strong>
+                                <small class="text-muted">students</small>
+                            </div>
+                            <div class="stat-badge">
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                <strong>{{ item.analyzed_count }}</strong>
+                                <small class="text-muted">analyzed</small>
+                            </div>
+                            {% if item.pending_count > 0 %}
+                                <div class="stat-badge">
+                                    <i class="bi bi-clock-fill text-warning"></i>
+                                    <strong>{{ item.pending_count }}</strong>
+                                    <small class="text-muted">pending</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar"></i> Created: {{ item.assignment.created_at|date:"M d, Y" }}
+                            </small>
+                            <br>
+                            {% if item.assignment.deadline %}
+                                <small>
+                                    <i class="bi bi-alarm"></i> 
+                                    <span class="deadline-badge {% if item.assignment.deadline < now %}deadline-passed{% endif %}">
+                                        Due: {{ item.assignment.deadline|date:"M d, Y" }}
+                                    </span>
+                                </small>
+                            {% else %}
+                                <small class="text-muted">
+                                    <i class="bi bi-alarm"></i> No deadline set
+                                </small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'assignment_detail' item.assignment.id %}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'add_student_repo' item.assignment.id %}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-plus"></i> Add Student
+                                </a>
+                                <a href="{% url 'assignment_analytics' item.assignment.id %}" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-graph-up"></i> Analytics
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="text-muted mt-3 mb-3">No assignments yet. Create your first assignment to get started!</p>
+                    <a href="{% url 'assignment_create' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create Assignment
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

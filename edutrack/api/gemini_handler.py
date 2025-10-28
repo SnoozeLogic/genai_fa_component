@@ -115,7 +115,11 @@ List the positive aspects of this repository.
 Suggest specific improvements the student could make.
 
 **4. Performance Score (0-100):**
-Rate the overall quality of the project considering code activity, documentation, and best practices.
+Provide a numerical score out of 100 (e.g., "85/100" or just "85"). Rate the overall quality of the project considering:
+- Code activity and commit frequency
+- Documentation quality (README, comments)
+- Best practices (git workflow, code organization)
+- Project completeness and functionality
 
 **5. Recommendations:**
 Provide 2-3 actionable next steps for the student.
@@ -156,21 +160,72 @@ Keep your feedback constructive, encouraging, and educational.
                     improvements_text = sections[i + 1].strip()
                     analysis["improvements"] = [s.strip() for s in improvements_text.split('\n') if s.strip() and (s.strip().startswith('-') or s.strip().startswith('*'))]
                 
-                elif "score" in section_lower and i + 1 < len(sections):
-                    score_text = sections[i + 1].strip()
-                    # Try to extract number
-                    import re
-                    score_match = re.search(r'(\d+)', score_text)
-                    if score_match:
-                        analysis["score"] = int(score_match.group(1))
+                elif ("score" in section_lower or "performance" in section_lower) and i + 1 < len(sections):
+                    # Check if this looks like the score section (avoid false positives)
+                    if any(keyword in section_lower for keyword in ["performance score", "score (0-100)", "score:", "rating"]):
+                        score_text = sections[i + 1].strip()
+                        print(f"[SCORE DEBUG] Found score section: {score_text[:200]}")  # Debug log
+                        # Try to extract number - look for patterns like "85/100", "85", or "Score: 85"
+                        import re
+                        # First try to find X/100 pattern
+                        score_match = re.search(r'(\d+)\s*/\s*100', score_text)
+                        if score_match:
+                            analysis["score"] = int(score_match.group(1))
+                            print(f"[SCORE DEBUG] ✓ Extracted score from X/100 pattern: {analysis['score']}")
+                        else:
+                            # Try to find "Score: XX" or similar patterns
+                            score_match = re.search(r'(?:score|rating)[\s:]+(\d{1,3})', score_text, re.IGNORECASE)
+                            if score_match:
+                                score_value = int(score_match.group(1))
+                                if 0 <= score_value <= 100:
+                                    analysis["score"] = score_value
+                                    print(f"[SCORE DEBUG] ✓ Extracted score from 'Score: XX' pattern: {score_value}")
+                                else:
+                                    print(f"[SCORE DEBUG] ✗ Score {score_value} out of range")
+                            else:
+                                # Look for standalone number (2-3 digits) as last resort
+                                score_match = re.search(r'\b(\d{2,3})\b', score_text)
+                                if score_match:
+                                    score_value = int(score_match.group(1))
+                                    # Validate it's in reasonable range
+                                    if 0 <= score_value <= 100:
+                                        analysis["score"] = score_value
+                                        print(f"[SCORE DEBUG] ✓ Extracted score from standalone number: {score_value}")
+                                    else:
+                                        print(f"[SCORE DEBUG] ✗ Score {score_value} out of range")
                 
                 elif "recommendation" in section_lower and i + 1 < len(sections):
                     recommendations_text = sections[i + 1].strip()
                     analysis["recommendations"] = [s.strip() for s in recommendations_text.split('\n') if s.strip() and (s.strip().startswith('-') or s.strip().startswith('*'))]
             
+            # If we still don't have a score, try one more time with the full text
+            if analysis["score"] is None:
+                print(f"[SCORE DEBUG] No score found in sections, trying full text extraction...")
+                import re
+                # Try to find X/100 anywhere in the text
+                score_match = re.search(r'(\d+)\s*/\s*100', response_text)
+                if score_match:
+                    analysis["score"] = int(score_match.group(1))
+                    print(f"[SCORE DEBUG] ✓ Extracted score from full text X/100: {analysis['score']}")
+                else:
+                    # Look for patterns like "Performance Score: 85" or "Score: 85"
+                    score_match = re.search(r'(?:performance\s+)?score[\s:]+(\d{1,3})', response_text, re.IGNORECASE)
+                    if score_match:
+                        score_value = int(score_match.group(1))
+                        if 0 <= score_value <= 100:
+                            analysis["score"] = score_value
+                            print(f"[SCORE DEBUG] ✓ Extracted score from full text pattern: {score_value}")
+            
+            # Final validation
+            if analysis["score"] is not None:
+                print(f"[SCORE DEBUG] ✅ Final score: {analysis['score']}")
+            else:
+                print(f"[SCORE DEBUG] ❌ No score could be extracted from response")
+        
         except Exception as e:
             # If parsing fails, just return the full text
             analysis["parse_error"] = str(e)
+            print(f"[SCORE DEBUG] ❌ Parsing error: {str(e)}")
         
         return analysis
     

@@ -69,6 +69,8 @@ def logout_view(request):
 @login_required
 def dashboard(request):
     """Main dashboard view"""
+    from django.utils import timezone
+    
     assignments = Assignment.objects.filter(teacher=request.user)
     
     # Calculate statistics
@@ -76,12 +78,35 @@ def dashboard(request):
     total_repos = StudentRepo.objects.filter(assignment__teacher=request.user).count()
     analyzed_repos = StudentRepo.objects.filter(assignment__teacher=request.user, is_analyzed=True).count()
     
+    # Annotate assignments with student count
+    from django.db.models import Count
+    assignments_with_stats = assignments.annotate(
+        student_count=Count('repos')
+    ).order_by('-created_at')
+    
+    # Add additional stats for each assignment
+    assignment_list = []
+    for assignment in assignments_with_stats[:10]:  # Latest 10 assignments
+        repos = StudentRepo.objects.filter(assignment=assignment)
+        analyzed_count = repos.filter(is_analyzed=True).count()
+        
+        assignment_data = {
+            'assignment': assignment,
+            'student_count': assignment.student_count,
+            'analyzed_count': analyzed_count,
+            'pending_count': assignment.student_count - analyzed_count,
+            'completion_percentage': round((analyzed_count / assignment.student_count * 100), 1) if assignment.student_count > 0 else 0,
+        }
+        assignment_list.append(assignment_data)
+    
     context = {
-        'assignments': assignments[:5],  # Latest 5 assignments
+        'assignments': assignments[:5],  # For backward compatibility
+        'assignment_list': assignment_list,
         'total_assignments': total_assignments,
         'total_repos': total_repos,
         'analyzed_repos': analyzed_repos,
         'pending_analysis': total_repos - analyzed_repos,
+        'now': timezone.now(),
     }
     
     return render(request, 'dashboard.html', context)
@@ -100,9 +125,61 @@ def assignment_detail(request, assignment_id):
     assignment = get_object_or_404(Assignment, id=assignment_id, teacher=request.user)
     repos = StudentRepo.objects.filter(assignment=assignment)
     
+    # Calculate statistics
+    total_repos = repos.count()
+    analyzed_repos = repos.filter(is_analyzed=True).count()
+    pending_repos = total_repos - analyzed_repos
+    
+    # Commit statistics
+    total_commits = sum(repo.commit_count for repo in repos)
+    avg_commits = round(total_commits / total_repos, 1) if total_repos > 0 else 0
+    
+    # Debug output
+    print(f"\n=== Assignment Detail Stats Debug ===")
+    print(f"Assignment: {assignment.title}")
+    print(f"Total repos: {total_repos}")
+    print(f"Analyzed repos: {analyzed_repos}")
+    print(f"Total commits: {total_commits}")
+    print(f"Avg commits: {avg_commits}")
+    print(f"=====================================\n")
+    
+    # Score statistics
+    scored_repos = repos.filter(is_analyzed=True, performance_score__isnull=False)
+    if scored_repos.exists():
+        scores = [repo.performance_score for repo in scored_repos]
+        avg_score = round(sum(scores) / len(scores), 1)
+        max_score = max(scores)
+        min_score = min(scores)
+    else:
+        avg_score = None
+        max_score = None
+        min_score = None
+    
+    # Language count
+    all_languages = set()
+    for repo in repos:
+        if repo.languages:
+            all_languages.update(repo.languages.keys())
+    total_languages = len(all_languages)
+    
+    # Top performers
+    top_repos = repos.filter(is_analyzed=True, performance_score__isnull=False).order_by('-performance_score')[:3]
+    
     context = {
         'assignment': assignment,
         'repos': repos,
+        # Statistics
+        'total_repos': total_repos,
+        'analyzed_repos': analyzed_repos,
+        'pending_repos': pending_repos,
+        'total_commits': total_commits,
+        'avg_commits': avg_commits,
+        'avg_score': avg_score,
+        'max_score': max_score,
+        'min_score': min_score,
+        'total_languages': total_languages,
+        'top_repos': top_repos,
+        'completion_percentage': round((analyzed_repos / total_repos * 100), 1) if total_repos > 0 else 0,
     }
     
     return render(request, 'assignment_detail.html', context)
@@ -197,7 +274,22 @@ def analyze_repo(request, repo_id):
         if analysis_result.get('success'):
             analysis = analysis_result.get('analysis', {})
             repo.ai_summary = analysis.get('full_text', '')
-            repo.performance_score = analysis.get('score')
+            
+            # Extract and validate score
+            extracted_score = analysis.get('score')
+            print(f"[VIEW DEBUG] Extracted score from analysis: {extracted_score}")
+            
+            if extracted_score is not None:
+                # Ensure it's an integer or float
+                try:
+                    repo.performance_score = float(extracted_score)
+                    print(f"[VIEW DEBUG] ✓ Saved performance_score: {repo.performance_score}")
+                except (ValueError, TypeError) as e:
+                    print(f"[VIEW DEBUG] ✗ Could not convert score {extracted_score} to number: {e}")
+                    repo.performance_score = None
+            else:
+                print(f"[VIEW DEBUG] ✗ No score in analysis result")
+                repo.performance_score = None
             
             # Combine improvements and recommendations as suggestions
             suggestions = analysis.get('improvements', []) + analysis.get('recommendations', [])
@@ -211,6 +303,8 @@ def analyze_repo(request, repo_id):
         
         repo.save()
         log.save()
+        
+        print(f"[VIEW DEBUG] Repository saved. Final performance_score in DB: {repo.performance_score}")
         
         return JsonResponse({
             'success': True,

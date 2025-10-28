@@ -1,6 +1,150 @@
 {% extends 'base.html' %}
+{% load markdown_filters %}
 
 {% block title %}{{ repo.student_name }} - Repository Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* AI Summary Markdown Styling */
+    .ai-summary {
+        font-size: 1.05rem;
+        line-height: 1.8;
+        color: #2d3748;
+    }
+    
+    .ai-summary h1, .ai-summary h2 {
+        color: #667eea;
+        font-weight: 700;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .ai-summary h3 {
+        color: #764ba2;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .ai-summary h4 {
+        color: #553c9a;
+        font-weight: 600;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .ai-summary p {
+        margin-bottom: 1rem;
+        line-height: 1.8;
+    }
+    
+    .ai-summary ul, .ai-summary ol {
+        margin-left: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .ai-summary li {
+        margin-bottom: 0.75rem;
+        line-height: 1.7;
+    }
+    
+    .ai-summary ul li {
+        list-style-type: disc;
+    }
+    
+    .ai-summary ol li {
+        list-style-type: decimal;
+    }
+    
+    .ai-summary strong {
+        color: #1a202c;
+        font-weight: 600;
+    }
+    
+    .ai-summary em {
+        font-style: italic;
+        color: #4a5568;
+    }
+    
+    .ai-summary hr {
+        border: none;
+        border-top: 2px solid #e2e8f0;
+        margin: 2rem 0;
+    }
+    
+    .ai-summary code {
+        background: #f7fafc;
+        border: 1px solid #e2e8f0;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.9em;
+        color: #e53e3e;
+    }
+    
+    .ai-summary pre {
+        background: #2d3748;
+        color: #f7fafc;
+        padding: 1.5rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .ai-summary pre code {
+        background: transparent;
+        border: none;
+        color: #f7fafc;
+        padding: 0;
+        font-size: 0.95rem;
+    }
+    
+    .ai-summary blockquote {
+        border-left: 4px solid #667eea;
+        padding-left: 1.5rem;
+        margin: 1.5rem 0;
+        color: #4a5568;
+        font-style: italic;
+    }
+    
+    .ai-summary table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+    }
+    
+    .ai-summary table th,
+    .ai-summary table td {
+        border: 1px solid #e2e8f0;
+        padding: 0.75rem;
+        text-align: left;
+    }
+    
+    .ai-summary table th {
+        background: #f7fafc;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .ai-summary table tr:nth-child(even) {
+        background: #f7fafc;
+    }
+    
+    .ai-summary a {
+        color: #667eea;
+        text-decoration: none;
+        border-bottom: 1px solid #667eea;
+    }
+    
+    .ai-summary a:hover {
+        color: #764ba2;
+        border-bottom-color: #764ba2;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -85,7 +229,41 @@
     </div>
     <div class="card-body">
         <div class="ai-summary">
-            {{ repo.ai_summary|linebreaks }}
+            {{ repo.ai_summary|format_markdown }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Contributors -->
+{% if repo.contributors %}
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-people-fill"></i> Contributors
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for contributor in repo.contributors %}
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center p-3 border rounded">
+                        <div class="me-3">
+                            <i class="bi bi-person-circle fs-2 text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                <a href="https://github.com/{{ contributor.login }}" target="_blank" class="text-decoration-none">
+                                    @{{ contributor.login }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">
+                                <i class="bi bi-git"></i> {{ contributor.contributions }} contribution{{ contributor.contributions|pluralize }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -129,20 +307,6 @@
                 <small><i class="bi bi-clock"></i> {{ repo.last_commit_date|date:"F d, Y g:i A" }}</small>
             </p>
         {% endif %}
-    </div>
-</div>
-{% endif %}
-
-<!-- README Preview -->
-{% if repo.readme_content %}
-<div class="card mb-4">
-    <div class="card-header bg-white">
-        <h5 class="mb-0">
-            <i class="bi bi-file-text"></i> README Preview
-        </h5>
-    </div>
-    <div class="card-body">
-        <pre class="bg-light p-3 rounded">{{ repo.readme_content|slice:":500" }}...</pre>
     </div>
 </div>
 {% endif %}
