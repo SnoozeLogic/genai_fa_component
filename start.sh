@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Start EduTrack AI with Gemini 2.5 Pro
+# Start GENAI FA Component with Gemini 2.5 Pro
 
 clear
 echo "=================================================="
-echo "  🚀 EduTrack AI - Starting Application"
+echo "  🚀 GENAI FA Component - Starting Application"
 echo "=================================================="
 echo ""
 echo "  ✅ Gemini 2.5 Pro Configured"

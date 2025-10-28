@@ -1,5 +1,5 @@
 """
-ASGI config for EduTrack AI project.
+ASGI config for GENAI FA Component project.
 """
 
 import os

@@ -1,5 +1,5 @@
 """
-WSGI config for EduTrack AI project.
+WSGI config for GENAI FA Component project.
 """
 
 import os

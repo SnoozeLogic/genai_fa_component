@@ -1,5 +1,5 @@
 """
-Django settings for EduTrack AI project.
+Django settings for GENAI FA Component project.
 """
 
 from pathlib import Path

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Quick run script for EduTrack AI (using uv)
+# Quick run script for GENAI FA Component (using uv)
 
-echo "🚀 Starting EduTrack AI..."
+echo "🚀 Starting GENAI FA Component..."
 
 # Check if .env exists
 if [ ! -f ".env" ]; then

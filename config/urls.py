@@ -1,5 +1,5 @@
 """
-URL configuration for EduTrack AI project.
+URL configuration for GENAI FA Component project.
 """
 from django.contrib import admin
 from django.urls import path, include
