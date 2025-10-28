@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ repo.student_name }} - Repository Details{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assignment_detail' repo.assignment.id %}">{{ repo.assignment.title }}</a></li>
+            <li class="breadcrumb-item active">{{ repo.student_name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="display-6 fw-bold">{{ repo.student_name }}</h1>
+            <p class="text-muted">
+                <a href="{{ repo.repo_url }}" target="_blank">
+                    <i class="bi bi-github"></i> {{ repo.repo_url }}
+                </a>
+            </p>
+        </div>
+        <div>
+            {% if repo.is_analyzed %}
+                <span class="badge bg-success fs-6">
+                    <i class="bi bi-check-circle"></i> Analyzed
+                </span>
+            {% else %}
+                <span class="badge bg-warning fs-6">
+                    <i class="bi bi-clock"></i> Pending Analysis
+                </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Repository Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-git fs-1 text-primary"></i>
+                <h3 class="mt-2">{{ repo.commit_count }}</h3>
+                <p class="text-muted mb-0">Commits</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-code-slash fs-1 text-success"></i>
+                <h3 class="mt-2">{{ repo.languages|length }}</h3>
+                <p class="text-muted mb-0">Languages</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-people fs-1 text-info"></i>
+                <h3 class="mt-2">{{ repo.contributors|length }}</h3>
+                <p class="text-muted mb-0">Contributors</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-star fs-1 text-warning"></i>
+                <h3 class="mt-2">{{ repo.performance_score|default:"-" }}</h3>
+                <p class="text-muted mb-0">AI Score</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Analysis -->
+{% if repo.ai_summary %}
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-magic"></i> AI Analysis
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="ai-summary">
+            {{ repo.ai_summary|linebreaks }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Language Breakdown -->
+{% if repo.languages %}
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-code-slash"></i> Languages Used
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for lang, bytes in repo.languages.items %}
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-primary me-2">{{ lang }}</span>
+                        <small class="text-muted">{{ bytes }} bytes</small>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Last Commit -->
+{% if repo.last_commit_message %}
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-git"></i> Latest Commit
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-2"><strong>Message:</strong> {{ repo.last_commit_message }}</p>
+        {% if repo.last_commit_date %}
+            <p class="text-muted mb-0">
+                <small><i class="bi bi-clock"></i> {{ repo.last_commit_date|date:"F d, Y g:i A" }}</small>
+            </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- README Preview -->
+{% if repo.readme_content %}
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-file-text"></i> README Preview
+        </h5>
+    </div>
+    <div class="card-body">
+        <pre class="bg-light p-3 rounded">{{ repo.readme_content|slice:":500" }}...</pre>
+    </div>
+</div>
+{% endif %}
+
+<!-- Analysis Logs -->
+{% if logs %}
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-clock-history"></i> Analysis History
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Error Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td>{{ log.analysis_date|date:"M d, Y g:i A" }}</td>
+                            <td>
+                                {% if log.status == 'success' %}
+                                    <span class="badge bg-success">Success</span>
+                                {% elif log.status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ log.error_message|default:"-" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

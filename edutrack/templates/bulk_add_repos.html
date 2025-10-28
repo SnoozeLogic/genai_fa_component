@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Add Repositories - {{ assignment.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-file-earmark-text"></i> Bulk Add Repositories
+                </h4>
+                <small class="text-muted">Assignment: {{ assignment.title }}</small>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Format:</strong> Each line should contain: <code>Student Name, Repository URL</code>
+                    <br>
+                    <strong>Example:</strong>
+                    <pre class="mb-0 mt-2">John Doe, https://github.com/johndoe/project1
+Jane Smith, https://github.com/janesmith/assignment
+Bob Johnson, https://github.com/bobjohnson/repo</pre>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="repos_data" class="form-label">Repository List *</label>
+                        <textarea class="form-control" id="repos_data" name="repos_data" rows="10" required placeholder="Student Name, Repository URL&#10;John Doe, https://github.com/johndoe/project"></textarea>
+                        <small class="form-text text-muted">One repository per line</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Add Repositories
+                        </button>
+                        <a href="{% url 'assignment_detail' assignment.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

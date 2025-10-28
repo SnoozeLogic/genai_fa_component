@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics - {{ assignment.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .stat-box h2 {
+        font-size: 2.5rem;
+        margin: 0;
+        font-weight: bold;
+    }
+    
+    .stat-box p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    
+    .language-bar {
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        height: 30px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        padding-left: 10px;
+        color: white;
+        margin-bottom: 10px;
+        transition: transform 0.2s;
+    }
+    
+    .language-bar:hover {
+        transform: translateX(5px);
+    }
+    
+    .score-badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .score-excellent { background: #10b981; }
+    .score-good { background: #3b82f6; }
+    .score-average { background: #f59e0b; }
+    .score-poor { background: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assignment_detail' assignment.id %}">{{ assignment.title }}</a></li>
+            <li class="breadcrumb-item active">Analytics</li>
+        </ol>
+    </nav>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="display-6 fw-bold">
+                <i class="bi bi-bar-chart-fill"></i> Assignment Analytics
+            </h1>
+            <p class="lead">{{ assignment.title }}</p>
+        </div>
+        <div>
+            <button onclick="downloadReport()" class="btn btn-success">
+                <i class="bi bi-download"></i> Download Report
+            </button>
+            <a href="{% url 'assignment_detail' assignment.id %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Key Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-box">
+            <h2>{{ total_students }}</h2>
+            <p>Total Students</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <h2>{{ total_commits }}</h2>
+            <p>Total Commits</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <h2>{{ avg_commits }}</h2>
+            <p>Avg Commits/Student</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <h2>{{ total_languages }}</h2>
+            <p>Languages Used</p>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-progress"></i> Analysis Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Analyzed:</strong> {{ analyzed_repos }} / {{ total_students }}</p>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar bg-success" style="width: {% widthratio analyzed_repos total_students 100 %}%">
+                                {% widthratio analyzed_repos total_students 100 %}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Pending:</strong> {{ pending_repos }}</p>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar bg-warning" style="width: {% widthratio pending_repos total_students 100 %}%">
+                                {% widthratio pending_repos total_students 100 %}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Language Distribution -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-code-square"></i> Programming Languages</h5>
+            </div>
+            <div class="card-body">
+                {% if language_stats %}
+                    {% for lang in language_stats %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <strong>{{ lang.language }}</strong>
+                                <span>{{ lang.percentage }}%</span>
+                            </div>
+                            <div class="language-bar" style="width: {{ lang.percentage }}%">
+                                <small>{{ lang.bytes|filesizeformat }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No language data available yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-trophy-fill"></i> Performance Scores</h5>
+            </div>
+            <div class="card-body">
+                {% if avg_score %}
+                    <div class="text-center mb-4">
+                        <h2 class="display-4">{{ avg_score }}</h2>
+                        <p class="text-muted">Average Score</p>
+                    </div>
+                    
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <h4>{{ max_score }}</h4>
+                            <small class="text-muted">Highest</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h4>{{ min_score }}</h4>
+                            <small class="text-muted">Lowest</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Score Distribution</h6>
+                    <div class="mb-2">
+                        <span class="score-badge score-excellent">Excellent (90+)</span>
+                        <strong class="float-end">{{ excellent }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <span class="score-badge score-good">Good (75-89)</span>
+                        <strong class="float-end">{{ good }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <span class="score-badge score-average">Average (60-74)</span>
+                        <strong class="float-end">{{ average }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <span class="score-badge score-poor">Needs Work (<60)</span>
+                        <strong class="float-end">{{ needs_improvement }}</strong>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No performance scores available yet. Analyze repositories to see scores.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Performers -->
+{% if top_performers %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-star-fill text-warning"></i> Top Performers</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for repo in top_performers %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ repo.student_name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ repo.commit_count }} commits</small>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">{{ repo.performance_score }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-fire text-danger"></i> Most Active (Commits)</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for repo in most_active %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ repo.student_name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {% if repo.languages %}
+                                        {{ repo.languages|length }} language{{ repo.languages|length|pluralize }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <span class="badge bg-success rounded-pill">{{ repo.commit_count }} commits</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Students Table -->
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-people-fill"></i> All Students ({{ total_students }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Commits</th>
+                        <th>Languages</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                        <tr>
+                            <td><strong>{{ student.name }}</strong></td>
+                            <td>{{ student.commits }}</td>
+                            <td>
+                                {% if student.languages %}
+                                    <small>{{ student.languages|join:", " }}</small>
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if student.score %}
+                                    {% if student.score >= 90 %}
+                                        <span class="score-badge score-excellent">{{ student.score }}</span>
+                                    {% elif student.score >= 75 %}
+                                        <span class="score-badge score-good">{{ student.score }}</span>
+                                    {% elif student.score >= 60 %}
+                                        <span class="score-badge score-average">{{ student.score }}</span>
+                                    {% else %}
+                                        <span class="score-badge score-poor">{{ student.score }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if student.analyzed %}
+                                    <span class="badge bg-success">Analyzed</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'repo_detail' student.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function downloadReport() {
+    fetch("{% url 'generate_report' assignment.id %}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Create downloadable file
+                const blob = new Blob([data.report], { type: 'text/markdown' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = data.filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                alert('Report downloaded successfully!');
+            } else {
+                alert('Error generating report');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error downloading report');
+        });
+}
+</script>
+{% endblock %}

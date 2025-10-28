@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ assignment.title }} - EduTrack AI{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assignment_list' %}">Assignments</a></li>
+            <li class="breadcrumb-item active">{{ assignment.title }}</li>
+        </ol>
+    </nav>
+    
+    <h1 class="display-6 fw-bold">{{ assignment.title }}</h1>
+    {% if assignment.description %}
+        <p class="lead">{{ assignment.description }}</p>
+    {% endif %}
+    <div class="text-muted">
+        <small>
+            <i class="bi bi-calendar"></i> Created: {{ assignment.created_at|date:"F d, Y" }}
+            {% if assignment.deadline %}
+                | <i class="bi bi-alarm"></i> Deadline: {{ assignment.deadline|date:"F d, Y g:i A" }}
+            {% endif %}
+        </small>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Actions</h5>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'add_student_repo' assignment.id %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Add Repository
+            </a>
+            <a href="{% url 'bulk_add_repos' assignment.id %}" class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-text"></i> Bulk Add Repositories
+            </a>
+            <a href="{% url 'assignment_analytics' assignment.id %}" class="btn btn-success">
+                <i class="bi bi-bar-chart-fill"></i> View Analytics
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Student Repositories -->
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-github"></i> Student Repositories ({{ repos.count }})
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if repos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Repository</th>
+                            <th>Commits</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for repo in repos %}
+                            <tr>
+                                <td><strong>{{ repo.student_name }}</strong></td>
+                                <td>
+                                    <a href="{{ repo.repo_url }}" target="_blank" class="text-decoration-none">
+                                        <i class="bi bi-github"></i> {{ repo.repo_url|slice:"30" }}...
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ repo.commit_count }}</span>
+                                </td>
+                                <td>
+                                    {% if repo.is_analyzed %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Analyzed
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-clock"></i> Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if repo.performance_score %}
+                                        <span class="badge bg-primary">{{ repo.performance_score }}/100</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'repo_detail' repo.id %}" class="btn btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        {% if not repo.is_analyzed %}
+                                            <button onclick="analyzeRepo({{ repo.id }})" class="btn btn-outline-success">
+                                                <i class="bi bi-magic"></i> Analyze
+                                            </button>
+                                        {% else %}
+                                            <button onclick="analyzeRepo({{ repo.id }})" class="btn btn-outline-info">
+                                                <i class="bi bi-arrow-repeat"></i> Re-analyze
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3">No repositories added yet.</p>
+                <a href="{% url 'add_student_repo' assignment.id %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add First Repository
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function analyzeRepo(repoId) {
+    if (!confirm('This will fetch data from GitHub and analyze it using AI. Continue?')) {
+        return;
+    }
+    
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Analyzing...';
+    
+    fetch(`/repo/${repoId}/analyze/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Analysis completed successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+</script>
+{% endblock %}
